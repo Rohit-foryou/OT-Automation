@@ -1,0 +1,205 @@
+name: OneTravel Booking Automation
+
+on:
+  workflow_dispatch:
+    inputs:
+      flight_origin:
+        description: 'Origin Airport code (e.g. JFK, LAX)'
+        required: true
+        default: 'JFK'
+        type: string
+      flight_destination:
+        description: 'Destination Airport code (e.g. MIA, ORD)'
+        required: true
+        default: 'MIA'
+        type: string
+      flight_departure_days:
+        description: 'Departure Days from today (e.g. 15)'
+        required: true
+        default: '15'
+        type: string
+      traveler_first_name:
+        description: 'Traveler First Name'
+        required: true
+        default: 'Alex'
+        type: string
+      traveler_last_name:
+        description: 'Traveler Last Name'
+        required: true
+        default: 'Miller'
+        type: string
+      traveler_gender:
+        description: 'Gender'
+        required: true
+        default: 'Male'
+        type: choice
+        options:
+          - 'Male'
+          - 'Female'
+      traveler_dob_month:
+        description: 'DOB Month (01-12)'
+        required: true
+        default: '05'
+        type: string
+      traveler_dob_day:
+        description: 'DOB Day (01-31)'
+        required: true
+        default: '15'
+        type: string
+      traveler_dob_year:
+        description: 'DOB Year (e.g. 1990)'
+        required: true
+        default: '1990'
+        type: string
+      traveler_email:
+        description: 'Traveler Email'
+        required: true
+        default: 'alex.miller.qa@example.com'
+        type: string
+      traveler_phone:
+        description: 'Traveler Phone (10 digits)'
+        required: true
+        default: '2025550184'
+        type: string
+      payment_card_number:
+        description: 'Dummy Card Number'
+        required: true
+        default: '4000000000000002'
+        type: string
+      payment_expiry:
+        description: 'Card Expiry (MM/YY)'
+        required: true
+        default: '12/28'
+        type: string
+      payment_cvv:
+        description: 'Card CVV'
+        required: true
+        default: '123'
+        type: string
+      billing_address:
+        description: 'Billing Address'
+        required: true
+        default: '123 Broadway St'
+        type: string
+      billing_city:
+        description: 'Billing City'
+        required: true
+        default: 'New York'
+        type: string
+      billing_state:
+        description: 'Billing State (e.g. NY - NEW YORK)'
+        required: true
+        default: 'NY - NEW YORK'
+        type: string
+      billing_zip:
+        description: 'Billing Zip Code'
+        required: true
+        default: '10001'
+        type: string
+
+jobs:
+  run-booking-automation:
+    name: Run OneTravel Booking Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Node Dependencies
+        run: npm install
+
+      - name: Install Playwright Browsers & OS Dependencies
+        run: npx playwright install --with-deps chromium
+
+      - name: Execute Booking Test with Input Parameters
+        id: run_tests
+        continue-on-error: true
+        env:
+          CI: 'true'
+          FLIGHT_ORIGIN: ${{ inputs.flight_origin }}
+          FLIGHT_DESTINATION: ${{ inputs.flight_destination }}
+          FLIGHT_DEPARTURE_DAYS: ${{ inputs.flight_departure_days }}
+          TRAVELER_FIRST_NAME: ${{ inputs.traveler_first_name }}
+          TRAVELER_LAST_NAME: ${{ inputs.traveler_last_name }}
+          TRAVELER_GENDER: ${{ inputs.traveler_gender }}
+          TRAVELER_DOB_MONTH: ${{ inputs.traveler_dob_month }}
+          TRAVELER_DOB_DAY: ${{ inputs.traveler_dob_day }}
+          TRAVELER_DOB_YEAR: ${{ inputs.traveler_dob_year }}
+          TRAVELER_EMAIL: ${{ inputs.traveler_email }}
+          TRAVELER_PHONE: ${{ inputs.traveler_phone }}
+          PAYMENT_CARD_NUMBER: ${{ inputs.payment_card_number }}
+          PAYMENT_CARD_HOLDER: '${{ inputs.traveler_first_name }} ${{ inputs.traveler_last_name }}'
+          PAYMENT_EXPIRY: ${{ inputs.payment_expiry }}
+          PAYMENT_CVV: ${{ inputs.payment_cvv }}
+          BILLING_ADDRESS: ${{ inputs.billing_address }}
+          BILLING_CITY: ${{ inputs.billing_city }}
+          BILLING_STATE: ${{ inputs.billing_state }}
+          BILLING_ZIP: ${{ inputs.billing_zip }}
+        run: |
+          xvfb-run --auto-servernum -- npx playwright test tests/onetravel-booking.spec.ts
+
+      - name: Generate Run Summary in GitHub Dashboard
+        if: always()
+        run: |
+          node -e "
+            const fs = require('fs');
+            const summaryFile = process.env.GITHUB_STEP_SUMMARY;
+            let output = '## ✈️ OneTravel Automation Run Summary\n\n';
+
+            if (fs.existsSync('booking-result.json')) {
+              try {
+                const res = JSON.parse(fs.readFileSync('booking-result.json', 'utf8'));
+                output += '| Attribute | Value |\n';
+                output += '| :--- | :--- |\n';
+                output += '| **Booking Status** | ' + (res.bookingStatus || 'N/A') + ' |\n';
+                output += '| **Order / Reference ID** | \`' + (res.orderId || 'N/A') + '\` |\n';
+                output += '| **Locator Key** | \`' + (res.locatorKey || 'N/A') + '\` |\n';
+                output += '| **Timestamp** | ' + (res.timestamp || 'N/A') + ' |\n';
+                output += '| **Result URL** | [' + (res.pageUrl || 'N/A') + '](' + (res.pageUrl || '#') + ') |\n\n';
+              } catch (e) {
+                output += '> Could not parse booking-result.json: ' + e.message + '\n\n';
+              }
+            } else {
+              output += '> ⚠️ No booking-result.json generated (test may have stopped before payment submission).\n\n';
+            }
+
+            output += '### 🔍 How to Inspect Logs & Failures:\n';
+            output += '1. Check the console step log for details.\n';
+            output += '2. Download the **\`playwright-report\`** artifact below to open the interactive HTML report with screenshots and video.\n';
+            output += '3. For failed actions, extract **\`trace.zip\`** and view at [trace.playwright.dev](https://trace.playwright.dev).\n';
+
+            fs.appendFileSync(summaryFile, output);
+          "
+
+      - name: Upload Playwright HTML Report & Traces
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 14
+
+      - name: Upload Booking Results JSON
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: booking-results
+          path: |
+            booking-result.json
+            booking-history.json
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Final Status Assertion
+        if: steps.run_tests.outcome != 'success'
+        run: |
+          echo "Test execution failed. Please inspect the downloaded playwright-report artifact or logs above."
+          exit 1

@@ -1,0 +1,14 @@
+{
+  "name": "onetravel-playwright",
+  "version": "1.0.0",
+  "description": "OneTravel flight booking test suite",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0",
+    "@types/node": "^26.6.5",
+    "typescript": "^5.6.0"
+  }
+}

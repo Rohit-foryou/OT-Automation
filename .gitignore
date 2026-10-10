@@ -1,0 +1,22 @@
+# Node dependencies
+node_modules/
+package-lock.json.backup
+
+# Playwright artifacts
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+
+# Local result logs (optional, keep history if desired)
+# booking-result.json
+# booking-history.json
+
+# Environment files
+.env
+.env.local
+.history/
+
+# OS files
+Thumbs.db
+.DS_Store
